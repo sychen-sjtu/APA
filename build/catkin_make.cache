@@ -1,0 +1,2 @@
+
+-DCATKIN_DEVEL_PREFIX=/home/sychen/Project/APA/APA/devel -DCMAKE_INSTALL_PREFIX=/home/sychen/Project/APA/APA/install -G Unix Makefiles
