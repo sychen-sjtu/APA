@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV 3 REQUIRED COMPONENTS core imgcodecs imgproc calib3d)
 find_package(Eigen3 3.3 REQUIRED)
+find_package(ompl REQUIRED)
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -37,6 +38,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${OMPL_INCLUDE_DIRS}
 )
 
 add_executable(planning
@@ -48,5 +50,6 @@ target_link_libraries(planning
   ${catkin_LIBRARIES}
   Eigen3::Eigen
   ${OpenCV_LIBS}
+  ompl
 )
 

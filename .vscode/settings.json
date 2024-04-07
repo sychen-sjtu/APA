@@ -59,7 +59,13 @@
         "unordered_set": "cpp",
         "hash_map": "cpp",
         "hash_set": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "csignal": "cpp",
+        "condition_variable": "cpp",
+        "forward_list": "cpp",
+        "random": "cpp",
+        "mutex": "cpp",
+        "valarray": "cpp"
     },
     "python.autoComplete.extraPaths": [
         "/home/sychen/Projects/APA/APA/devel/lib/python2.7/dist-packages",

@@ -11,16 +11,20 @@
 
 #include <vector>
 
+#include <ompl/base/spaces/ReedsSheppStateSpace.h>
+#include <ompl/base/spaces/DubinsStateSpace.h>
+#include <ompl/geometric/SimpleSetup.h>
+
 #include "parking_slot_detection/gcn_parking.h"
 
 
 class Planner {
     public:
         struct VehicleParam{
-            double K_f;
-            double K_r;
-            double L_f;
-            double L_r;
+            double K_f; // 前轴到车头的距离
+            double K_r; // 后轴到车位的距离
+            double L_f; // 前轴到中心的距离
+            double L_r; // 后轴到中心的距离
             double L;
             double vehicle_length;
             double vehicle_width;
@@ -74,6 +78,9 @@ class Planner {
         VehicleParam vehicle_param;
 
         double trajectory_step_length;
+        
+        // opml的RS规划器
+        ompl::base::StateSpacePtr shotptr;
   
 };
 

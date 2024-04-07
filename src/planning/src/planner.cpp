@@ -43,6 +43,8 @@ Planner::Planner(ros::NodeHandle &nh){
     vehicle_param.vehicle_r_min = 3.5;
 
     trajectory_step_length = 0.01;
+    
+    shotptr =std::make_shared<ompl::base::ReedsSheppStateSpace>(vehicle_param.vehicle_r_min);
 
     cv::namedWindow("detected_results");
 }
@@ -161,20 +163,16 @@ Planner::Trajectory Planner::geometry_plan(Eigen::Vector3d start_pose, Planner::
         // std::cout << "Planning Fail!!!" <<  std::endl;
         return final_trajectory;
     }
-    // 使用RS规划轨迹
 
-    // 根据采样间隔生成轨迹，轨迹为从停车位到车，然后再reverse，后续改成直接正向生成
-    // 直线部分
-    for(double current_s = 0; current_s < path_s; current_s += trajectory_step_length){
-        double current_point_x = parking_slot.center[0] + current_s * std::cos(parking_slot.theta);
-        double current_point_y = parking_slot.center[1] + current_s * std::sin(parking_slot.theta);
-        double current_point_theta = parking_slot.theta;
-        final_trajectory.trajectory_points.emplace_back(Eigen::Vector3d(current_point_x, current_point_y, current_point_theta));
-    }
+    // 先生成后半部分的轨迹，然后再进行RS规划 
+    double parking_end_point_x = parking_slot.center[0] - vehicle_param.L_r * std::cos(parking_slot.theta);
+    double parking_end_point_y = parking_slot.center[1] - vehicle_param.L_r * std::sin(parking_slot.theta);
+    // 这个规划方式得到的路径车中心的规划路径，这里转化为车辆后轴中心试试
     // 圆弧部分，有两个方向，选择末端模仿和车辆朝向最接近的方向
-    double circle_start_point_x = parking_slot.center[0] + path_s * std::cos(parking_slot.theta);
-    double circle_start_point_y = parking_slot.center[1] + path_s * std::sin(parking_slot.theta);
-    // 判断是顺时针转还是逆时针转
+
+    double circle_start_point_x = parking_end_point_x + path_s * std::cos(parking_slot.theta); // 从运动角度看，这是圆弧轨迹的终点
+    double circle_start_point_y = parking_end_point_y + path_s * std::sin(parking_slot.theta);
+    // 判断是顺时针转还是逆时针转，这里的顺时针和逆时针是，圆的起始角度，终止角度，都是从离开车位来说的，因此在加入轨迹时需要倒序加入
     double clockwise_final_theta = parking_slot.theta - M_PI / 2.0;
     double counterclockwise_final_theta = parking_slot.theta + M_PI / 2.0;
     if (std::abs(normalize_angle(clockwise_final_theta - start_pose[2])) < std::abs(normalize_angle(counterclockwise_final_theta - start_pose[2]))){
@@ -185,10 +183,11 @@ Planner::Trajectory Planner::geometry_plan(Eigen::Vector3d start_pose, Planner::
         double delta_angle = -trajectory_step_length / path_r;
         double circle_center_x = circle_start_point_x + path_r * std::cos(clockwise_final_theta);
         double circle_center_y = circle_start_point_y + path_r * std::sin(clockwise_final_theta);
-        for(double current_angle = start_angle; current_angle >= end_angle; current_angle += delta_angle){
+        // for(double current_angle = start_angle; current_angle >= end_angle; current_angle += delta_angle){
+        for(double current_angle = end_angle; current_angle <= start_angle; current_angle -= delta_angle){
+            double current_point_theta = current_angle - M_PI / 2.0;
             double current_point_x = circle_center_x + path_r * std::cos(current_angle);
             double current_point_y = circle_center_y + path_r * std::sin(current_angle);
-            double current_point_theta = current_angle - M_PI / 2.0;
             final_trajectory.trajectory_points.emplace_back(Eigen::Vector3d(current_point_x, current_point_y, current_point_theta));
         }
     }
@@ -202,15 +201,51 @@ Planner::Trajectory Planner::geometry_plan(Eigen::Vector3d start_pose, Planner::
         double delta_angle = trajectory_step_length / path_r;
         double circle_center_x = circle_start_point_x + path_r * std::cos(counterclockwise_final_theta);
         double circle_center_y = circle_start_point_y + path_r * std::sin(counterclockwise_final_theta);
-        for(double current_angle = start_angle; current_angle <= end_angle; current_angle += delta_angle){
+        // for(double current_angle = start_angle; current_angle <= end_angle; current_angle += delta_angle){
+        for(double current_angle = end_angle; current_angle >= start_angle; current_angle -= delta_angle){
+            double current_point_theta = current_angle + M_PI / 2.0;
             double current_point_x = circle_center_x + path_r * std::cos(current_angle);
             double current_point_y = circle_center_y + path_r * std::sin(current_angle);
-            double current_point_theta = current_angle + M_PI / 2.0;
             final_trajectory.trajectory_points.emplace_back(Eigen::Vector3d(current_point_x, current_point_y, current_point_theta));
         }
     }
-    // 拼接RS曲线部分
 
+    // 根据采样间隔生成轨迹，圆弧终点到停车位
+    // 直线部分
+    for(double current_s = path_s; current_s >= 0.0; current_s -= trajectory_step_length){
+        double current_point_x = parking_end_point_x + current_s * std::cos(parking_slot.theta);
+        double current_point_y = parking_end_point_y + current_s * std::sin(parking_slot.theta);
+        double current_point_theta = parking_slot.theta;
+        final_trajectory.trajectory_points.emplace_back(Eigen::Vector3d(current_point_x, current_point_y, current_point_theta));
+    }
+
+    // 使用RS规划轨迹
+    namespace ob = ompl::base;
+    namespace og = ompl::geometric;
+    ob::ScopedState<> from(shotptr), to(shotptr), s(shotptr);
+    from[0] = start_pose[0] - vehicle_param.L_r * std::cos(start_pose[2]);
+    from[1] = start_pose[1] - vehicle_param.L_r * std::sin(start_pose[2]);
+    from[2] = start_pose[2];
+    // RS规划的终点是几何方法规划的起点
+    to[0] = final_trajectory.trajectory_points[0][0];
+    to[1] = final_trajectory.trajectory_points[0][1];
+    to[2] = final_trajectory.trajectory_points[0][2];
+    std::vector<double> reals;
+    double len = shotptr->distance(from(), to());
+    std::vector<Eigen::Vector3d> rs_trajectory_points;
+    for (double l = 0.0; l <=len; l += trajectory_step_length)
+    {
+        shotptr->interpolate(from(), to(), l/len, s());
+        reals = s.reals();
+        Eigen::Vector3d current_pose = Eigen::Vector3d(reals[0], reals[1], reals[2]);
+        rs_trajectory_points.emplace_back(current_pose);
+        // AINFO << "( " << reals[0] << ", " <<  reals[1] << ", " << reals[2] << ")";
+    }
+
+    // 合并轨迹
+    final_trajectory.trajectory_points.insert(final_trajectory.trajectory_points.begin(), 
+                                            std::make_move_iterator(rs_trajectory_points.begin()), 
+                                            std::make_move_iterator(rs_trajectory_points.end()));
     return final_trajectory;
 }
 
@@ -256,8 +291,9 @@ void Planner::avm_image_call_back(const sensor_msgs::ImageConstPtr& msg)
             return;
         }
         // 进行规划
-        // std::cout << "start planning" << std::endl;
+        std::cout << "start planning" << std::endl;
         for (auto parking_slot_points : detected_parking_points){
+            cv::Scalar color(rand() % 256, rand() % 256, rand() % 256);
             ParkingSlot parking_slot = get_parking_slot(parking_slot_points);
             if (parking_slot.width < vehicle_param.vehicle_width + 0.2){
                 continue;
@@ -272,16 +308,24 @@ void Planner::avm_image_call_back(const sensor_msgs::ImageConstPtr& msg)
             cv::circle(image, point1, 3, cv::Scalar(0, 255, 0), 2);
             cv::Point parking_slot_center_img = point_front_vehicle_to_img(parking_slot.center);
             cv::circle(image, parking_slot_center_img, 3, cv::Scalar(0, 0, 255), 2);
-            cv::Point test_point = point_front_vehicle_to_img(Eigen::Vector2d(5.0, 2.0));
-            cv::circle(image, test_point, 3, cv::Scalar(0, 0, 0), 10, 10);
             if(planned_trajectory.trajectory_points.size() == 0){
                 std::cout << "planning fail" << std::endl;
                 continue;
             }
             std::cout << "parking_slot.theta: " << parking_slot.theta << std::endl;
-            for (int i = 0; i < planned_trajectory.trajectory_points.size(); i+= 20){
-                Eigen::Vector3d trajectory_point = planned_trajectory.trajectory_points[i];
-                draw_rectangle(image, trajectory_point[0], trajectory_point[1], vehicle_param.vehicle_length, vehicle_param.vehicle_width, trajectory_point[2]);
+            // for (int i = 0; i < planned_trajectory.trajectory_points.size(); i+= 50){
+            //     Eigen::Vector3d trajectory_point = planned_trajectory.trajectory_points[i];
+            //     double current_theta = trajectory_point[2];
+            //     draw_rectangle(image, trajectory_point[0] + vehicle_param.L_r * std::cos(current_theta), trajectory_point[1] + vehicle_param.L_r * std::sin(current_theta), vehicle_param.vehicle_length, vehicle_param.vehicle_width, trajectory_point[2]);
+            //     cv::putText(image, std::to_string(i), cv::Point(point_front_vehicle_to_img(Eigen::Vector2d(trajectory_point[0], trajectory_point[1]))), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2);
+            // }
+            for(int i = 0; i < planned_trajectory.trajectory_points.size() - 10; i += 10){
+                Eigen::Vector3d current_trajectory_point = planned_trajectory.trajectory_points[i];
+                Eigen::Vector3d next_trajectory_point = planned_trajectory.trajectory_points[i + 10];
+                cv::Point current_trajectory_point_image = point_front_vehicle_to_img(Eigen::Vector2d(current_trajectory_point[0], current_trajectory_point[1]));
+                cv::Point next_trajectory_point_image = point_front_vehicle_to_img(Eigen::Vector2d(next_trajectory_point[0], next_trajectory_point[1]));
+                cv::line(image, current_trajectory_point_image, next_trajectory_point_image, color, 2);
+                cv::putText(image, std::to_string(i), current_trajectory_point_image, cv::FONT_HERSHEY_SIMPLEX, 0.3, color, 0.5);
             }
         }
         cv::imshow("detected_results", image);
