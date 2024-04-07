@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(parking_slot_detection)
+project(planning)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -9,26 +9,13 @@ project(parking_slot_detection)
 ## is used, also find other catkin packages
 
 find_package(catkin REQUIRED COMPONENTS
+  cv_bridge
+  image_transport
   roscpp
   rospy
   sensor_msgs
   std_msgs
-  message_generation
-  cv_bridge
-  image_transport
-)
-
-
-## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  gcn_parking.srv
-)
-
-generate_messages(
-   DEPENDENCIES
-   std_msgs  # Or other packages containing msgs
-   sensor_msgs
+  parking_slot_detection
 )
 
 find_package(OpenCV 3 REQUIRED COMPONENTS core imgcodecs imgproc calib3d)
@@ -36,8 +23,8 @@ find_package(Eigen3 3.3 REQUIRED)
 
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES parking_slot_detection
- CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs message_runtime
+#  LIBRARIES planning
+#  CATKIN_DEPENDS cv_bridge image_transport roscpp rospy sensor_msgs std_msgs
 #  DEPENDS system_lib
 )
 
@@ -52,11 +39,12 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(client_test_node
-  src/client_test.cpp
+add_executable(planning
+  src/main.cpp
+  src/planner.cpp
 )
 
-target_link_libraries(client_test_node
+target_link_libraries(planning
   ${catkin_LIBRARIES}
   Eigen3::Eigen
   ${OpenCV_LIBS}

@@ -1,0 +1,9 @@
+<launch>
+    <!-- 启动service节点 -->
+    <node name="service_node" pkg="parking_slot_detection" type="service_test.py" output="screen" />
+
+    <!-- 启动client节点 -->
+    <node name="client_node" pkg="parking_slot_detection" type="client_test.py" output="screen">
+        <param name="image_path" type="str" value="$(find parking_slot_detection)/data/test.jpg"/>
+    </node>
+</launch>

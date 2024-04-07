@@ -1,0 +1,7 @@
+sensor_msgs/Image image_data
+---
+int32[] point0_x
+int32[] point0_y
+int32[] point1_x
+int32[] point1_y
+int32[] types

@@ -1,0 +1,9 @@
+<launch>
+    <!-- 启动service节点 -->
+    <node name="service_node" pkg="parking_slot_detection" type="gcn_server.py" output="screen" args="-c"></node>
+    <!-- planning -->
+    <node name="planning_node" pkg="planning" type="planning" output="screen">
+        <param name="avm_image_topic" type="str" value="/image_avm"/>
+        <param name="gcn_server_topic" type="str" value="/gcn_service"/>
+    </node>
+</launch>
