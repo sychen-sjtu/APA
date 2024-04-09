@@ -19,6 +19,9 @@ Planner::Planner(ros::NodeHandle &nh){
     // PARAM("avm_image_config_name", avm_image_config_name);
     PARAM("/planning_node/gcn_server_topic", gcn_server_topic_);
     PARAM("/planning_node/avm_image_topic", avm_image_topic_);
+    PARAM("/planning_node/output_dir", output_dir);
+    PARAM("/planning_node/save_results", if_save_results);
+    
     std::cout << "avm_image_topic_: " << avm_image_topic_ << std::endl;
 
     client_ = nh_.serviceClient<parking_slot_detection::gcn_parking>(gcn_server_topic_);
@@ -63,7 +66,7 @@ double Planner::normalize_angle(double angle){
     return angle;
 }
 
-void Planner::draw_rectangle(cv::Mat &image, double center_x, double center_y, double length, double width, double theta){
+void Planner::draw_rectangle(cv::Mat &image, double center_x, double center_y, double length, double width, double theta, cv::Scalar color){
     // 计算矩形的旋转角度对应的正弦值和余弦值
     double sin_val = std::sin(theta);
     double cos_val = std::cos(theta);
@@ -87,7 +90,7 @@ void Planner::draw_rectangle(cv::Mat &image, double center_x, double center_y, d
     rectangle_vertices_image.emplace_back(point_front_vehicle_to_img(Eigen::Vector2d(x4, y4)));
     int point_num = rectangle_vertices_image.size();
     for(int i = 0; i < point_num; i++){
-        cv::line(image, rectangle_vertices_image[i % point_num], rectangle_vertices_image[(i + 1) % point_num], cv::Scalar(0, 255, 0), 2);
+        cv::line(image, rectangle_vertices_image[i % point_num], rectangle_vertices_image[(i + 1) % point_num], color, 2);
     }
 }
 
@@ -123,6 +126,118 @@ Planner::ParkingSlot Planner::get_parking_slot(std::pair<cv::Point, cv::Point> p
     parking_slot.width = point0_point1_vec.norm();
 
     return parking_slot;
+}
+
+std::vector<Planner::boost_polygon> Planner::get_obstacles_from_parking_slot(ParkingSlot &parking_slot, double road_width, double min_obstacle_length){
+    // 将停车位和道路以外的区域全部看做障碍物（最保守的做法），有三块障碍物：车位左右，车位对面
+    std::vector<Planner::boost_polygon> obstacle_list;
+    double parking_slot_center_x = parking_slot.center[0];
+    double parking_slot_center_y = parking_slot.center[1];
+    double parking_slot_theta = parking_slot.theta;
+    double half_length = parking_slot.length / 2.0;
+    double half_width = parking_slot.length / 2.0;
+
+    Eigen::Vector2d parking_slot_direction_vector(std::cos(parking_slot_theta), std::sin(parking_slot_theta));
+
+    // 车辆左右的障碍物，从车位中心，先计算某一边的两个端点，再进行延长
+    for(double obstacle_theta : {parking_slot_theta  - M_PI/2.0, parking_slot_theta + M_PI/2.0}){
+        Eigen::Vector2d parking_slot_lateral_direction_vector(std::cos(obstacle_theta), std::sin(obstacle_theta));
+        
+        // 车位前方的一个顶点
+        Eigen::Vector2d point1 = parking_slot.center + half_length * parking_slot_direction_vector + half_width * parking_slot_lateral_direction_vector;
+        
+        // 车位后方的一个顶点
+        Eigen::Vector2d point2 = parking_slot.center - half_length * parking_slot_direction_vector + half_width * parking_slot_lateral_direction_vector;
+        
+        // 车位前方的一个顶点沿车位横向延长
+        Eigen::Vector2d point3 = point1 + min_obstacle_length * parking_slot_lateral_direction_vector;
+
+        // 车位后方的一个顶点沿车位横向延长
+        Eigen::Vector2d point4 = point2 + min_obstacle_length * parking_slot_lateral_direction_vector;
+
+        // 构造障碍物矩形
+        std::vector<Planner::boost_point> points = {
+            {point1[0], point1[1]}, 
+            {point2[0], point2[1]},
+            {point3[0], point3[1]},
+            {point4[0], point4[1]}
+        };
+        Planner::boost_polygon obstacle_poly;
+        boost::geometry::append(obstacle_poly, points);
+        boost::geometry::correct(obstacle_poly);
+        obstacle_list.emplace_back(obstacle_poly);
+    }
+    // 车位对面的障碍物
+    {
+        Eigen::Vector2d obstacle_near_line_center = parking_slot.center + (half_length + road_width) * parking_slot_direction_vector;
+        Eigen::Vector2d obstacle_far_line_center = parking_slot.center + (half_length + road_width + min_obstacle_length) * parking_slot_direction_vector;
+        Eigen::Vector2d parking_slot_lateral_direction_vector_1(std::cos(parking_slot_theta  - M_PI/2.0), std::sin(parking_slot_theta  - M_PI/2.0));
+        Eigen::Vector2d parking_slot_lateral_direction_vector_2(std::cos(parking_slot_theta  + M_PI/2.0), std::sin(parking_slot_theta  + M_PI/2.0));
+        Eigen::Vector2d shift_vector_1 = min_obstacle_length * parking_slot_lateral_direction_vector_1;
+        Eigen::Vector2d shift_vector_2 = min_obstacle_length * parking_slot_lateral_direction_vector_2;
+
+        Eigen::Vector2d point1 = obstacle_near_line_center + shift_vector_1;
+        Eigen::Vector2d point2 = obstacle_near_line_center + shift_vector_2;
+        Eigen::Vector2d point3 = obstacle_far_line_center + shift_vector_2;
+        Eigen::Vector2d point4 = obstacle_far_line_center + shift_vector_1;
+
+        // 构造障碍物矩形
+        std::vector<Planner::boost_point> points = {
+            {point1[0], point1[1]}, 
+            {point2[0], point2[1]},
+            {point3[0], point3[1]},
+            {point4[0], point4[1]}
+        };
+        Planner::boost_polygon obstacle_poly;
+        boost::geometry::append(obstacle_poly, points);
+        boost::geometry::correct(obstacle_poly);
+        obstacle_list.emplace_back(obstacle_poly);
+    }
+
+    return obstacle_list;
+}
+
+// 输入车辆中心坐标与障碍物vector
+bool Planner::polygon_validate_check(Eigen::Vector3d pose, std::vector<boost_polygon> & obstacle_list){
+    // 构建自车的polygon
+    // 计算矩形的旋转角度对应的正弦值和余弦值
+    double sin_val = std::sin(pose[2]);
+    double cos_val = std::cos(pose[2]);
+    double center_x = pose[0];
+    double center_y = pose[1];
+    double length = vehicle_param.vehicle_length;
+    double width = vehicle_param.vehicle_width;
+    // 计算矩形的四个顶点坐标
+    double x1 = center_x - length / 2 * cos_val - width / 2 * sin_val;
+    double y1 = center_y - length / 2 * sin_val + width / 2 * cos_val;
+
+    double x2 = center_x + length / 2 * cos_val - width / 2 * sin_val;
+    double y2 = center_y + length / 2 * sin_val + width / 2 * cos_val;
+
+    double x3 = center_x + length / 2 * cos_val + width / 2 * sin_val;
+    double y3 = center_y + length / 2 * sin_val - width / 2 * cos_val;
+
+    double x4 = center_x - length / 2 * cos_val + width / 2 * sin_val;
+    double y4 = center_y - length / 2 * sin_val - width / 2 * cos_val;
+
+    std::vector<Planner::boost_point> vehicle_points = {
+        {x1, y1}, 
+        {x2, y2},
+        {x3, y3},
+        {x4, y4}
+    };
+    Planner::boost_polygon vehicle_poly;
+    boost::geometry::append(vehicle_poly, vehicle_points);
+    boost::geometry::correct(vehicle_poly);
+
+    for(auto obstacle : obstacle_list){
+        if (boost::geometry::intersects(obstacle, vehicle_poly)){
+            return true;
+        }
+    }
+    return false;
+
+
 }
 
 double Planner::get_r_fc(double s, double b1, double b2, double b3){
@@ -188,7 +303,8 @@ Planner::Trajectory Planner::geometry_plan(Eigen::Vector3d start_pose, Planner::
             double current_point_theta = current_angle - M_PI / 2.0;
             double current_point_x = circle_center_x + path_r * std::cos(current_angle);
             double current_point_y = circle_center_y + path_r * std::sin(current_angle);
-            final_trajectory.trajectory_points.emplace_back(Eigen::Vector3d(current_point_x, current_point_y, current_point_theta));
+            Eigen::Vector3d current_pose(current_point_x, current_point_y, current_point_theta);
+            final_trajectory.trajectory_points.emplace_back(current_pose);
         }
     }
     else{
@@ -206,7 +322,8 @@ Planner::Trajectory Planner::geometry_plan(Eigen::Vector3d start_pose, Planner::
             double current_point_theta = current_angle + M_PI / 2.0;
             double current_point_x = circle_center_x + path_r * std::cos(current_angle);
             double current_point_y = circle_center_y + path_r * std::sin(current_angle);
-            final_trajectory.trajectory_points.emplace_back(Eigen::Vector3d(current_point_x, current_point_y, current_point_theta));
+            Eigen::Vector3d current_pose(current_point_x, current_point_y, current_point_theta);
+            final_trajectory.trajectory_points.emplace_back(current_pose);
         }
     }
 
@@ -216,7 +333,8 @@ Planner::Trajectory Planner::geometry_plan(Eigen::Vector3d start_pose, Planner::
         double current_point_x = parking_end_point_x + current_s * std::cos(parking_slot.theta);
         double current_point_y = parking_end_point_y + current_s * std::sin(parking_slot.theta);
         double current_point_theta = parking_slot.theta;
-        final_trajectory.trajectory_points.emplace_back(Eigen::Vector3d(current_point_x, current_point_y, current_point_theta));
+        Eigen::Vector3d current_pose(current_point_x, current_point_y, current_point_theta);
+        final_trajectory.trajectory_points.emplace_back(current_pose);
     }
 
     // 使用RS规划轨迹
@@ -272,7 +390,6 @@ bool Planner::call_gcn_server(cv::Mat &avm_image, std::vector<std::pair<cv::Poin
             int type = srv.response.types[i];
             detected_point.emplace_back(std::make_pair<cv::Point, cv::Point>(cv::Point(point0_x, point0_y), cv::Point(point1_x, point1_y)));
         }
-        
     }
     else{
         std::cout << "Fail to call service" << std::endl;
@@ -300,7 +417,8 @@ void Planner::avm_image_call_back(const sensor_msgs::ImageConstPtr& msg)
             }
             Eigen::Vector3d vehicle_pose(0.0, 0.0, 0.0);
             Trajectory planned_trajectory = geometry_plan(vehicle_pose, parking_slot);
-            
+            // 在这里做检测，主要是容易可视化
+            std::vector<boost_polygon> obstacles_list = get_obstacles_from_parking_slot(parking_slot, 5.5, 10);
             // 进行可视化
             cv::Point point0 = parking_slot_points.first;
             cv::Point point1 = parking_slot_points.second;
@@ -326,10 +444,27 @@ void Planner::avm_image_call_back(const sensor_msgs::ImageConstPtr& msg)
                 cv::Point next_trajectory_point_image = point_front_vehicle_to_img(Eigen::Vector2d(next_trajectory_point[0], next_trajectory_point[1]));
                 cv::line(image, current_trajectory_point_image, next_trajectory_point_image, color, 2);
                 cv::putText(image, std::to_string(i), current_trajectory_point_image, cv::FONT_HERSHEY_SIMPLEX, 0.3, color, 0.5);
+
+                // 判断轨迹是否发生碰撞
+                double current_theta = current_trajectory_point[2];
+                double vehicle_center_x = current_trajectory_point[0] + vehicle_param.L_r * std::cos(current_theta);
+                double vehicle_center_y = current_trajectory_point[1] + vehicle_param.L_r * std::sin(current_theta);
+                if (polygon_validate_check(Eigen::Vector3d(vehicle_center_x, vehicle_center_y, current_theta), obstacles_list)){
+                    draw_rectangle(image, vehicle_center_x, vehicle_center_y, vehicle_param.vehicle_length, vehicle_param.vehicle_width, current_theta, color);
+                }
+
             }
         }
         cv::imshow("detected_results", image);
-        cv::waitKey(5);
+        if(if_save_results){
+            std::stringstream ss;
+            ss << std::setw(5) << std::setfill('0') << frame_cnt;
+            std::string idStr = ss.str();
+            std::string output_file = output_dir + idStr + ".png";
+            cv::imwrite(output_file, image);
+        }
+        cv::waitKey(2);
+        frame_cnt++;
     } catch (cv_bridge::Exception& e) {
         ROS_ERROR("Failed to convert ROS image message to OpenCV image: %s", e.what());
         return;

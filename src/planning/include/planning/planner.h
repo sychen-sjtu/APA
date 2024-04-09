@@ -11,6 +11,10 @@
 
 #include <vector>
 
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/polygon.hpp>
+#include <boost/geometry/geometries/point_xy.hpp>
+
 #include <ompl/base/spaces/ReedsSheppStateSpace.h>
 #include <ompl/base/spaces/DubinsStateSpace.h>
 #include <ompl/geometric/SimpleSetup.h>
@@ -20,6 +24,9 @@
 
 class Planner {
     public:
+        using boost_point = boost::geometry::model::d2::point_xy<double>;
+        using boost_polygon = boost::geometry::model::polygon<boost::geometry::model::d2::point_xy<double>>;
+
         struct VehicleParam{
             double K_f; // 前轴到车头的距离
             double K_r; // 后轴到车位的距离
@@ -56,9 +63,11 @@ class Planner {
         double get_r_fc(double s, double b1, double b2, double b3);
         double get_r_sc(double s, double b1, double b2, double b3);
         Trajectory geometry_plan(Eigen::Vector3d start_pose, ParkingSlot parking_slot);
+        std::vector<boost_polygon> get_obstacles_from_parking_slot(ParkingSlot &parking_slot, double road_width, double min_obstacle_length);
+        bool polygon_validate_check(Eigen::Vector3d pose, std::vector<boost_polygon> & obstacle_list);
         
         double normalize_angle(double angle);
-        void draw_rectangle(cv::Mat &image, double center_x, double center_y, double length, double width, double theta);
+        void draw_rectangle(cv::Mat &image, double center_x, double center_y, double length, double width, double theta, cv::Scalar color);
 
         ros::NodeHandle nh_;
         ros::ServiceClient client_;
@@ -81,6 +90,10 @@ class Planner {
         
         // opml的RS规划器
         ompl::base::StateSpacePtr shotptr;
+
+        int frame_cnt = 0;
+        std::string output_dir;
+        bool if_save_results;
   
 };
 

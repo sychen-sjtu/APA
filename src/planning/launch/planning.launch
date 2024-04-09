@@ -5,5 +5,7 @@
     <node name="planning_node" pkg="planning" type="planning" output="screen">
         <param name="avm_image_topic" type="str" value="/image_avm"/>
         <param name="gcn_server_topic" type="str" value="/gcn_service"/>
+        <param name="output_dir" type="str" value="$(find planning)/output_data/"/>
+        <param name="save_results" type="bool" value="false"/>
     </node>
 </launch>
