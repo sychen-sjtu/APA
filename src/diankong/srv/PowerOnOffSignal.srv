@@ -1,0 +1,6 @@
+# 上电和下电请求， 1 0 为上电 ; 0 1 为下电（上电状态目前只是定义）
+uint8  power_ON_req
+uint8  power_OFF_req
+---
+#返回的结果，当命令为set时返回设置的成功与否 当命令为get时则直接返回当前的状态
+uint8 power_ONOFF_response

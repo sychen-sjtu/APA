@@ -20,30 +20,13 @@
 #include <ompl/geometric/SimpleSetup.h>
 
 #include "parking_slot_detection/gcn_parking.h"
+#include "common/common_struct.hpp"
 
 
 class Planner {
     public:
         using boost_point = boost::geometry::model::d2::point_xy<double>;
         using boost_polygon = boost::geometry::model::polygon<boost::geometry::model::d2::point_xy<double>>;
-
-        struct VehicleParam{
-            double K_f; // 前轴到车头的距离
-            double K_r; // 后轴到车位的距离
-            double L_f; // 前轴到中心的距离
-            double L_r; // 后轴到中心的距离
-            double L;
-            double vehicle_length;
-            double vehicle_width;
-            double vehicle_r_min;
-        };
-
-        struct ParkingSlot{
-            Eigen::Vector2d center;     // 车位中心坐标
-            double theta;               // 车位朝向
-            double length;              // 车位长度
-            double width;               // 车位宽度
-        };
 
         struct Trajectory{
             std::vector<Eigen::Vector3d> trajectory_points;
@@ -66,7 +49,6 @@ class Planner {
         std::vector<boost_polygon> get_obstacles_from_parking_slot(ParkingSlot &parking_slot, double road_width, double min_obstacle_length);
         bool polygon_validate_check(Eigen::Vector3d pose, std::vector<boost_polygon> & obstacle_list);
         
-        double normalize_angle(double angle);
         void draw_rectangle(cv::Mat &image, double center_x, double center_y, double length, double width, double theta, cv::Scalar color);
 
         ros::NodeHandle nh_;

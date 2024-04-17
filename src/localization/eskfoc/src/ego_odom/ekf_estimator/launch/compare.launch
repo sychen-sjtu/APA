@@ -1,0 +1,24 @@
+<launch>
+    <param name="acc_noise"       type="double" value="1e-3" />
+    <param name="gyr_noise"       type="double" value="1e-4" />
+    <param name="acc_bias_noise"  type="double" value="1e-7" />
+    <param name="gyr_bias_noise"  type="double" value="1e-8" />
+    <param name="whl_odom_var"       type="double" value="0.2" />
+    <param name="imu_mount_rw_var"       type="double" value="1e-6" />
+    <param name="IF_GPS_DENY"       type="bool" value= "true"  />
+
+    <param name="use_sim_time" value="false" />
+    <node pkg="ego_odom" type="ekf_estimator" name="" output="screen">
+     <!-- <remap from="/Inertial/gps/fix" to="/Modified/gps//fix" />   
+      <remap from="/Inertial/imu/data" to="/Modified/imu/data" />
+      <remap from="/rock_can/speed_feedback" to="/Modified/speed_feedback" />  -->
+    </node>
+
+    <node name = "playbag" pkg="rosbag" type="play" args="--clock /home/heron/SJTU/Codes/data/0312_final.bag -r 2 --pause" output="screen">
+    </node>
+
+    <node pkg="rviz" type="rviz" name="rviz" output="screen" 
+      args="-d $(find ego_odom)/ekf_estimator/rviz/run.rviz" required="false">
+    </node>
+
+</launch>

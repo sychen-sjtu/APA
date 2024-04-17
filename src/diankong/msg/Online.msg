@@ -1,0 +1,11 @@
+Head hd
+string vin
+string lpn
+string vkey
+string make
+string model
+float32 length
+float32 width
+float32 wheel_base
+float32 length_to_rear_axis
+float32 steer_ratio

@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="ego_odom" type="data_generator" name="" output="screen"/>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find ego_odom)/ekf_estimator/rviz/ego.rviz" required="false"/>
+
+</launch>

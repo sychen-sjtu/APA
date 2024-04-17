@@ -6,11 +6,8 @@
         "limitSymbolsToIncludedHeaders": false
       },
       "includePath": [
-        "/home/sychen/Projects/APA/APA/devel/include/**",
-        "/opt/ros/melodic/include/**",
-        "/opt/ros/melodic/include/ompl-1.4/**",
-        "/usr/include/**",
-        "${workspaceFolder}/**"
+        "/opt/ros/noetic/include/**",
+        "/usr/include/**"
       ],
       "name": "ROS",
       "intelliSenseMode": "gcc-x64",

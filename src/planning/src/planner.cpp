@@ -4,16 +4,16 @@
 Planner::Planner(ros::NodeHandle &nh){
     nh_ = nh;
     
-    #define PARAM(name, var)                                    \
-        do {                                                    \
-            if (!nh_.getParam(name, var)) {                     \
-                ROS_ERROR("missing parameter '" #name "'");     \
-                return;                                         \
-            }                                                   \
-            else{                                               \
-                std::cout << "get param " << name << " : " << var << std::endl;         \
-            }                                                   \
-        } while (0)
+    #define PARAM(name, var)                                \
+    do {                                                    \
+        if (!nh_.getParam(name, var)) {                     \
+            ROS_ERROR("missing parameter '" #name "'");     \
+            return;                                         \
+        }                                                   \
+        else{                                               \
+            std::cout << "get param " << name << " : " << var << std::endl;         \
+        }                                                   \
+    } while (0)
 
     std::string avm_image_config_name;
     // PARAM("avm_image_config_name", avm_image_config_name);
@@ -54,16 +54,6 @@ Planner::Planner(ros::NodeHandle &nh){
 
 Planner::~Planner(){
     cv::destroyAllWindows();
-}
-
-double Planner::normalize_angle(double angle){
-    while(angle > M_PI){
-        angle -= 2 * M_PI;
-    }
-    while(angle < -M_PI){
-        angle += 2 * M_PI;
-    }
-    return angle;
 }
 
 void Planner::draw_rectangle(cv::Mat &image, double center_x, double center_y, double length, double width, double theta, cv::Scalar color){

@@ -1,0 +1,1 @@
+bool[12] if_safe

@@ -1,0 +1,8 @@
+#字符串为命令类型，set或者get set表示设置命令 get表示获取当前车辆的状态，此时后面的mode无用
+string cmd_str
+uint8  mode
+---
+#返回的结果，当命令为set时返回设置的成功与否 当命令为get时则直接返回当前的状态
+uint8 drive_mode_res
+uint8 status_res
+uint8 task_res

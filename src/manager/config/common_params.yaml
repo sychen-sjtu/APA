@@ -1,0 +1,17 @@
+parking_slot_detection:
+  parking_slot_detected_threshold: 10
+  max_no_detected_cnt: 200
+
+
+vehicle:
+  model: hycan_z03
+  size:
+    width: 1.86
+    length: 4.515
+    height: 1.69
+    wheel_base: 2.65
+    rear_to_back: 0.96
+    trailer_length: 4.8
+  wheel_max: 450.0
+  wheel_zero: 0
+  turning_radius: 4.3 #之前是6.0

@@ -1,0 +1,8 @@
+#控制转向节点的状态
+uint16 ctrl_node_mode
+---
+#最终结果,eps所处于的状态
+int32 result
+---
+#连续反馈,反馈此节点与eps握手的实时状态
+int32 now_status

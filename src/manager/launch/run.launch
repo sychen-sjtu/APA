@@ -1,0 +1,22 @@
+<launch>
+    <!-- 启动定位 -->
+    <param name="use_sim_time" value="false" />
+    <!-- 读取参数 -->
+    <rosparam file="$(find manager)/config/common_params.yaml" command="load"/>
+    <node pkg="ego_odom" type="ekf_estimator" name="">
+     <!-- <remap from="/Inertial/gps/fix" to="/Modified/gps//fix" />   
+      <remap from="/Inertial/imu/data" to="/Modified/imu/data" />
+      <remap from="/rock_can/speed_feedback" to="/Modified/speed_feedback" />  -->
+    </node>
+    <!-- 泊车 -->
+    <node pkg="manager" type="manager_node" name="parking_manager" output="screen"></node>
+    <!-- 车位检测服务 -->
+    <node name="service_node" pkg="parking_slot_detection" type="gcn_server.py" args="-c"></node>
+    <!-- 可视化 -->
+    <node pkg="rviz" type="rviz" name="rviz" output="screen" 
+      args="-d $(find manager)/rviz/run.rviz" required="false">
+    </node>
+    <!-- tf -->
+    <node pkg="tf" type="static_transform_publisher" name="base_link_vehicle_broadcaster" args="1.34 0 0 0 0 0 /base_link /vehicle 100" />
+    <node pkg="tf" type="static_transform_publisher" name="vehicle_show_broadcaster" args="0 0 0.0 1.57 3.14 0 /vehicle /vehicle_show 100" />
+</launch>

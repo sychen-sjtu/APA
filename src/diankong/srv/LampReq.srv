@@ -1,0 +1,4 @@
+#接收远程驾驶控制舱的灯光控制指令   0 No Request;   1 LeftLamp;     2 RightLamp;    3 HazardLamp;
+uint8  LampReq
+---
+uint8 LampReq_response

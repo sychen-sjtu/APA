@@ -1,0 +1,14 @@
+<launch>
+    <param name="use_sim_time" value="false" />
+    <node pkg="ego_odom" type="ekf_estimator" name="" output="screen">
+     <!-- <remap from="/Inertial/gps/fix" to="/Modified/gps//fix" />   
+      <remap from="/Inertial/imu/data" to="/Modified/imu/data" />
+      <remap from="/rock_can/speed_feedback" to="/Modified/speed_feedback" />  -->
+    </node>
+
+
+    <node pkg="rviz" type="rviz" name="rviz" output="screen" 
+      args="-d $(find ego_odom)/ekf_estimator/rviz/run.rviz" required="false">
+    </node>
+
+</launch>

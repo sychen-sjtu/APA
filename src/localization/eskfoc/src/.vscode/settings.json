@@ -1,5 +1,7 @@
 {
     "files.associations": {
+        "fstream": "cpp",
+        "dense": "cpp",
         "cctype": "cpp",
         "clocale": "cpp",
         "cmath": "cpp",
@@ -18,10 +20,12 @@
         "bitset": "cpp",
         "chrono": "cpp",
         "complex": "cpp",
+        "condition_variable": "cpp",
         "cstdint": "cpp",
         "deque": "cpp",
         "list": "cpp",
         "unordered_map": "cpp",
+        "unordered_set": "cpp",
         "vector": "cpp",
         "exception": "cpp",
         "algorithm": "cpp",
@@ -32,6 +36,7 @@
         "memory_resource": "cpp",
         "numeric": "cpp",
         "optional": "cpp",
+        "random": "cpp",
         "ratio": "cpp",
         "set": "cpp",
         "string": "cpp",
@@ -40,13 +45,15 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "utility": "cpp",
-        "fstream": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp",
         "initializer_list": "cpp",
         "iomanip": "cpp",
         "iosfwd": "cpp",
         "iostream": "cpp",
         "istream": "cpp",
         "limits": "cpp",
+        "mutex": "cpp",
         "new": "cpp",
         "ostream": "cpp",
         "sstream": "cpp",
@@ -55,26 +62,17 @@
         "thread": "cpp",
         "cfenv": "cpp",
         "cinttypes": "cpp",
-        "typeinfo": "cpp",
-        "unordered_set": "cpp",
-        "hash_map": "cpp",
-        "hash_set": "cpp",
         "typeindex": "cpp",
-        "csignal": "cpp",
-        "condition_variable": "cpp",
-        "forward_list": "cpp",
-        "random": "cpp",
-        "mutex": "cpp",
-        "valarray": "cpp",
-        "*.ipp": "cpp"
+        "typeinfo": "cpp",
+        "variant": "cpp",
+        "bit": "cpp",
+        "*.ipp": "cpp",
+        "core": "cpp"
     },
     "python.autoComplete.extraPaths": [
-        "/home/sychen/Projects/APA/APA/devel/lib/python2.7/dist-packages",
-        "/opt/ros/melodic/lib/python2.7/dist-packages"
+        "/opt/ros/noetic/lib/python3/dist-packages"
     ],
     "python.analysis.extraPaths": [
-        "/home/sychen/Projects/APA/APA/devel/lib/python2.7/dist-packages",
-        "/opt/ros/melodic/lib/python2.7/dist-packages"
-    ],
-    "editor.snippets.codeActions.enabled": true
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ]
 }
